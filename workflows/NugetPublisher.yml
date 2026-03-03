@@ -1,0 +1,175 @@
+name: 🚀 Publish F-- to NuGet
+
+on:
+  # Tự động chạy khi push tag mới
+  push:
+    tags:
+      - 'v*'           # Ví dụ: v1.0.0, v1.4.0, v2.0.0
+    branches:
+      - main           # Chạy khi push lên main (có thể filter)
+  
+  # Cho phép chạy thủ công từ GitHub UI
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.4.0)'
+        required: true
+        default: '1.4.0'
+      prerelease:
+        description: 'Is this a prerelease?'
+        type: boolean
+        default: false
+
+# Jobs chính
+jobs:
+  # Job 1: Build và Test
+  build-and-test:
+    name: 🛠️ Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Lấy full history để tính version
+      
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            7.0.x
+      
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+      
+      - name: 🏗️ Build solution
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: 🧪 Run tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+      
+      - name: 📊 Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./TestResults/**/coverage.cobertura.xml
+          flags: unittests
+          name: F-- Coverage
+      
+      - name: 📦 Pack NuGet package (test)
+        run: dotnet pack src/FSharpMinus.Compiler/FSharpMinus.Compiler.csproj --configuration Release --no-build --output nupkg-test --version-suffix "ci-${{ github.run_number }}"
+      
+      - name: 📤 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-test
+          path: nupkg-test/*.nupkg
+
+  # Job 2: Publish lên NuGet
+  publish-nuget:
+    name: 📦 Publish to NuGet
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # Chỉ chạy khi có tag hoặc workflow_dispatch
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      
+      - name: 🔢 Get version
+        id: get_version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Lấy version từ tag (bỏ chữ 'v' ở đầu)
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 📝 Update version in csproj
+        run: |
+          sed -i "s/<Version>.*<\/Version>/<Version>${{ steps.get_version.outputs.VERSION }}<\/Version>/" src/FSharpMinus.Compiler/FSharpMinus.Compiler.csproj
+      
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+      
+      - name: 🏗️ Build Release
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: 🧪 Run tests (again for safety)
+        run: dotnet test --configuration Release --no-build --verbosity minimal
+      
+      - name: 📦 Pack NuGet package
+        run: |
+          dotnet pack src/FSharpMinus.Compiler/FSharpMinus.Compiler.csproj \
+            --configuration Release \
+            --no-build \
+            --output nupkg \
+            -p:PackageVersion=${{ steps.get_version.outputs.VERSION }}
+      
+      - name: 📤 Push to NuGet.org
+        run: |
+          dotnet nuget push nupkg/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+      
+      - name: 🏷️ Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: F-- v${{ steps.get_version.outputs.VERSION }}
+          body_path: CHANGELOG.md
+          files: nupkg/*.nupkg
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📊 Upload NuGet packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-release
+          path: nupkg/*.nupkg
+
+  # Job 3: Publish lên GitHub Packages (optional)
+  publish-github:
+    name: 📦 Publish to GitHub Packages
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+      
+      - name: 🏗️ Build Release
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: 📦 Pack NuGet package
+        run: |
+          dotnet pack src/FSharpMinus.Compiler/FSharpMinus.Compiler.csproj \
+            --configuration Release \
+            --no-build \
+            --output nupkg-github
+      
+      - name: 📤 Push to GitHub Packages
+        run: |
+          dotnet nuget push nupkg-github/*.nupkg \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --skip-duplicate
