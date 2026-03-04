@@ -1,9 +1,8 @@
 
 # F-- Programming Language
 
-[![.NET Build](https://github.com/realmg51-cpu/F---Programming-Language/workflows/dotnet-build.yml/badge.svg)](https://github.com/realmg51-cpu/FMinusMinus-programing-language/actions/workflows/dotnet-build.yml)
-[![.NET Test](https://github.com/realmg51-cpu/FMinusMinus-programing-language/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/realmg51-cpu/FMinusMinus-programing-language/actions/workflows/dotnet-test.yml)
-[![Code Coverage](https://codecov.io/gh/realmg51-cpu/FMinusMinus-programing-language/branch/main/graph/badge.svg)](https://codecov.io/gh/realmg51-cpu/FMinusMinus-programing-language)
+[![.NET Build](https://github.com/realmg51-cpu/F---Programming-Language/.gihub/workflows/dotnet-build.yml/badge.svg)](https://github.com/realmg51-cpu/FMinusMinus-programing-language/.github/workflows/dotnet-build.yml)
+[![.NET Test](https://github.com/realmg51-cpu/FMinusMinus-programing-language/.github/workflows/dotnet-test.yml/badge.svg)](https://github.com/realmg51-cpu/FMinusMinus-programing-language/actions/workflows/dotnet-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]
 [![NuGet Version](https://img.shields.io/nuget/v/FSharpMinus)]
 
