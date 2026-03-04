@@ -1,401 +1,344 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Fminusminus
 {
-    public class Parser
+    public enum TokenType
     {
-        private readonly List<Token> _tokens;
-        private int _current = 0;
-        private readonly List<string> _errors = new();
+        // Keywords
+        IMPORT, COMPUTER, START, RETURN, END,
+        PRINT, PRINTLN, AT, IO, MEMORY,
+        
+        // Literals
+        IDENTIFIER, STRING, STRING_INTERPOLATED, NUMBER,
+        
+        // Punctuation
+        LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
+        DOT, COMMA, SEMICOLON, COLON, ASSIGN,
+        
+        // Operators
+        PLUS, MINUS, STAR, SLASH, PERCENT,
+        
+        // Comparison
+        EQUAL, NOT_EQUAL, LESS, LESS_EQUAL, GREATER, GREATER_EQUAL,
+        
+        // Special
+        NEWLINE, COMMENT, EOF, ERROR
+    }
 
-        public Parser(List<Token> tokens)
+    public class Token
+    {
+        public TokenType Type { get; }
+        public string Lexeme { get; }
+        public object Literal { get; }
+        public int Line { get; }
+        public int Column { get; }
+
+        public Token(TokenType type, string lexeme, object literal, int line, int column)
         {
-            _tokens = tokens;
+            Type = type;
+            Lexeme = lexeme;
+            Literal = literal;
+            Line = line;
+            Column = column;
         }
 
-        public ProgramNode Parse()
+        public override string ToString()
         {
-            var program = new ProgramNode();
-            
-            try
+            return $"{Type} '{Lexeme}' at {Line}:{Column}";
+        }
+    }
+
+    public class Lexer
+    {
+        private readonly string _source;
+        private readonly List<Token> _tokens = new();
+        private int _start = 0;
+        private int _current = 0;
+        private int _line = 1;
+        private int _column = 1;
+        private readonly List<string> _errors = new();
+
+        private static readonly Dictionary<string, TokenType> _keywords = new()
+        {
+            { "import", TokenType.IMPORT },
+            { "computer", TokenType.COMPUTER },
+            { "start", TokenType.START },
+            { "return", TokenType.RETURN },
+            { "end", TokenType.END },
+            { "print", TokenType.PRINT },
+            { "println", TokenType.PRINTLN },
+            { "at", TokenType.AT },
+            { "io", TokenType.IO },
+            { "memory", TokenType.MEMORY }
+        };
+
+        public Lexer(string source)
+        {
+            _source = source;
+        }
+
+        public List<Token> ScanTokens()
+        {
+            while (!IsAtEnd())
             {
-                // Bắt buộc phải có: import computer
-                if (!Match(TokenType.IMPORT))
-                    Error("Missing 'import' keyword");
-                
-                if (!Match(TokenType.COMPUTER))
-                    Error("Expected 'computer' after 'import'");
-                
-                program.HasImportComputer = true;
-                
-                // Có thể có newline sau import
-                while (Match(TokenType.NEWLINE)) { }
-                
-                // Bắt buộc phải có: start()
-                if (!Match(TokenType.START))
-                    Error("Missing 'start()' entry point");
-                
-                if (!Match(TokenType.LPAREN))
-                    Error("Expected '(' after 'start'");
-                
-                if (!Match(TokenType.RPAREN))
-                    Error("Expected ')' after 'start('");
-                
-                // Parse start block
-                program.StartBlock = ParseStartBlock();
-                
-                // Kiểm tra còn token thừa
-                if (Peek().Type != TokenType.EOF)
-                    Error($"Unexpected token after end block: {Peek().Lexeme}");
+                _start = _current;
+                ScanToken();
             }
-            catch (Exception ex)
-            {
-                _errors.Add($"fmm001: {ex.Message}");
-            }
+
+            _tokens.Add(new Token(TokenType.EOF, "", null, _line, _column));
             
             if (_errors.Count > 0)
                 throw new Exception(string.Join("\n", _errors));
             
-            return program;
+            return _tokens;
         }
 
-        private StartBlockNode ParseStartBlock()
+        private void ScanToken()
         {
-            var block = new StartBlockNode();
-            
-            if (!Match(TokenType.LBRACE))
-                Error("Expected '{' to start block");
-            
-            // Parse statements inside block
-            while (!Check(TokenType.RBRACE) && !IsAtEnd())
+            char c = Advance();
+
+            switch (c)
             {
-                var stmt = ParseStatement();
-                if (stmt != null)
-                    block.Statements.Add(stmt);
-            }
-            
-            if (!Match(TokenType.RBRACE))
-                Error("Expected '}' to end block");
-            
-            // Kiểm tra bắt buộc phải có return và end
-            bool hasReturn = false;
-            bool hasEnd = false;
-            
-            foreach (var stmt in block.Statements)
-            {
-                if (stmt is ReturnStatementNode) hasReturn = true;
-                if (stmt is EndStatementNode) hasEnd = true;
-            }
-            
-            if (!hasReturn)
-                Error("Missing required 'return()' statement");
-            
-            if (!hasEnd)
-                Error("Missing required 'end()' statement");
-            
-            // Kiểm tra return phải là statement cuối cùng trước end
-            var lastStmts = block.Statements.GetRange(
-                Math.Max(0, block.Statements.Count - 2), 
-                Math.Min(2, block.Statements.Count)
-            );
-            
-            if (lastStmts.Count >= 2)
-            {
-                if (!(lastStmts[lastStmts.Count - 2] is ReturnStatementNode))
-                    Error("'return()' must be the last statement before 'end()'");
+                // Single character tokens
+                case '(': AddToken(TokenType.LPAREN); break;
+                case ')': AddToken(TokenType.RPAREN); break;
+                case '{': AddToken(TokenType.LBRACE); break;
+                case '}': AddToken(TokenType.RBRACE); break;
+                case '[': AddToken(TokenType.LBRACKET); break;
+                case ']': AddToken(TokenType.RBRACKET); break;
+                case '.': AddToken(TokenType.DOT); break;
+                case ',': AddToken(TokenType.COMMA); break;
+                case ';': AddToken(TokenType.SEMICOLON); break;
+                case ':': AddToken(TokenType.COLON); break;
                 
-                if (!(lastStmts[lastStmts.Count - 1] is EndStatementNode))
-                    Error("'end()' must be the final statement");
-            }
-            
-            block.HasReturn = hasReturn;
-            block.HasEnd = hasEnd;
-            
-            return block;
-        }
-
-        private StatementNode ParseStatement()
-        {
-            // Skip newlines
-            while (Match(TokenType.NEWLINE)) { }
-            
-            if (IsAtEnd()) return null;
-            
-            switch (Peek().Type)
-            {
-                case TokenType.PRINTLN:
-                    return ParsePrintln();
-                    
-                case TokenType.PRINT:
-                    return ParsePrint();
-                    
-                case TokenType.RETURN:
-                    return ParseReturn();
-                    
-                case TokenType.END:
-                    return ParseEnd();
-                    
-                case TokenType.IDENTIFIER:
-                    return ParseIdentifierStatement();
-                    
-                case TokenType.AT:
-                    return ParseAtBlock();
-                    
-                case TokenType.IO:
-                    return ParseIOStatement();
-                    
-                case TokenType.MEMORY:
-                    return ParseMemoryStatement();
-                    
-                case TokenType.COMMENT:
-                    Advance();
-                    return null;
-                    
+                // Operators
+                case '+': AddToken(TokenType.PLUS); break;
+                case '-': AddToken(TokenType.MINUS); break;
+                case '*': AddToken(TokenType.STAR); break;
+                case '/': 
+                    if (Match('/'))
+                    {
+                        // Comment đến hết dòng
+                        while (Peek() != '\n' && !IsAtEnd()) Advance();
+                        AddToken(TokenType.COMMENT);
+                    }
+                    else
+                    {
+                        AddToken(TokenType.SLASH);
+                    }
+                    break;
+                case '%': AddToken(TokenType.PERCENT); break;
+                
+                // Assignment
+                case '=': 
+                    if (Match('='))
+                        AddToken(TokenType.EQUAL);
+                    else
+                        AddToken(TokenType.ASSIGN);
+                    break;
+                
+                // Comparison
+                case '!':
+                    if (Match('='))
+                        AddToken(TokenType.NOT_EQUAL);
+                    else
+                        AddToken(TokenType.ERROR, "Unexpected '!'");
+                    break;
+                case '<':
+                    AddToken(Match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
+                    break;
+                case '>':
+                    AddToken(Match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
+                    break;
+                
+                // String literals
+                case '"':
+                    StringLiteral();
+                    break;
+                
+                // String interpolation
+                case '$':
+                    if (Peek() == '"')
+                    {
+                        Advance();
+                        StringInterpolation();
+                    }
+                    else
+                    {
+                        AddToken(TokenType.IDENTIFIER, "$");
+                    }
+                    break;
+                
+                // Whitespace
+                case ' ':
+                case '\r':
+                case '\t':
+                    // Ignore
+                    break;
+                case '\n':
+                    _line++;
+                    _column = 1;
+                    AddToken(TokenType.NEWLINE);
+                    break;
+                
                 default:
-                    Error($"Unexpected token: {Peek().Lexeme}");
-                    Advance();
-                    return null;
+                    if (char.IsDigit(c))
+                    {
+                        Number();
+                    }
+                    else if (char.IsLetter(c) || c == '_')
+                    {
+                        Identifier();
+                    }
+                    else
+                    {
+                        _errors.Add($"fmm002: Unexpected character '{c}' at line {_line}, column {_column}");
+                    }
+                    break;
             }
         }
 
-        private PrintlnStatementNode ParsePrintln()
+        private void Identifier()
         {
-            Advance(); // consume println
-            var node = new PrintlnStatementNode();
+            while (char.IsLetterOrDigit(Peek()) || Peek() == '_') Advance();
             
-            if (!Match(TokenType.LPAREN))
-                Error("Expected '(' after println");
+            string text = _source.Substring(_start, _current - _start);
+            TokenType type = _keywords.TryGetValue(text, out var keyword) ? keyword : TokenType.IDENTIFIER;
             
-            node.Expression = ParseExpression();
-            
-            if (!Match(TokenType.RPAREN))
-                Error("Expected ')' after expression");
-            
-            return node;
+            AddToken(type, text);
         }
 
-        private PrintStatementNode ParsePrint()
+        private void Number()
         {
-            Advance(); // consume print
-            var node = new PrintStatementNode();
+            while (char.IsDigit(Peek())) Advance();
             
-            if (!Match(TokenType.LPAREN))
-                Error("Expected '(' after print");
-            
-            node.Expression = ParseExpression();
-            
-            if (!Match(TokenType.RPAREN))
-                Error("Expected ')' after expression");
-            
-            return node;
-        }
-
-        private ReturnStatementNode ParseReturn()
-        {
-            Advance(); // consume return
-            var node = new ReturnStatementNode();
-            
-            if (!Match(TokenType.LPAREN))
-                Error("Expected '(' after return");
-            
-            if (Check(TokenType.NUMBER))
+            if (Peek() == '.' && char.IsDigit(PeekNext()))
             {
-                node.ReturnCode = (int)Peek().Literal;
-                Advance();
+                Advance(); // Consume '.'
+                while (char.IsDigit(Peek())) Advance();
+                AddToken(TokenType.NUMBER, double.Parse(_source.Substring(_start, _current - _start)));
             }
             else
             {
-                Error("Expected return code number");
+                AddToken(TokenType.NUMBER, int.Parse(_source.Substring(_start, _current - _start)));
             }
-            
-            if (!Match(TokenType.RPAREN))
-                Error("Expected ')' after return code");
-            
-            return node;
         }
 
-        private EndStatementNode ParseEnd()
+        private void StringLiteral()
         {
-            Advance(); // consume end
-            var node = new EndStatementNode();
+            StringBuilder sb = new();
             
-            if (!Match(TokenType.LPAREN))
-                Error("Expected '(' after end");
-            
-            if (!Match(TokenType.RPAREN))
-                Error("Expected ')' after end(");
-            
-            return node;
-        }
-
-        private StatementNode ParseIdentifierStatement()
-        {
-            string identifier = Peek().Lexeme;
-            Advance();
-            
-            if (Match(TokenType.ASSIGN))
+            while (Peek() != '"' && !IsAtEnd())
             {
-                var node = new AssignmentNode { VariableName = identifier };
-                node.Value = ParseExpression();
-                return node;
-            }
-            
-            Error($"Unexpected identifier '{identifier}'");
-            return null;
-        }
-
-        private AtBlockNode ParseAtBlock()
-        {
-            Advance(); // consume at
-            var node = new AtBlockNode();
-            
-            node.FileName = ParseExpression();
-            
-            if (!Match(TokenType.LBRACE))
-                Error("Expected '{' after filename");
-            
-            while (!Check(TokenType.RBRACE) && !IsAtEnd())
-            {
-                var stmt = ParseStatement();
-                if (stmt != null)
-                    node.Statements.Add(stmt);
-            }
-            
-            if (!Match(TokenType.RBRACE))
-                Error("Expected '}' to end at block");
-            
-            return node;
-        }
-
-        private IOStatementNode ParseIOStatement()
-        {
-            Advance(); // consume io
-            var node = new IOStatementNode();
-            
-            if (!Match(TokenType.DOT))
-                Error("Expected '.' after io");
-            
-            if (Check(TokenType.IDENTIFIER))
-            {
-                node.Operation = Peek().Lexeme;
-                Advance();
-            }
-            else
-            {
-                Error("Expected IO operation after io.");
-            }
-            
-            if (Match(TokenType.LPAREN))
-            {
-                while (!Check(TokenType.RPAREN) && !IsAtEnd())
+                if (Peek() == '\n') _line++;
+                if (Peek() == '\\')
                 {
-                    node.Parameters.Add(ParseExpression());
-                    Match(TokenType.COMMA);
+                    Advance();
+                    sb.Append(HandleEscapeSequence());
                 }
+                else
+                {
+                    sb.Append(Peek());
+                    Advance();
+                }
+            }
+            
+            if (IsAtEnd())
+            {
+                _errors.Add($"fmm002: Unterminated string at line {_line}");
+                return;
+            }
+            
+            Advance(); // Consume closing "
+            AddToken(TokenType.STRING, sb.ToString());
+        }
+
+        private void StringInterpolation()
+        {
+            StringBuilder sb = new();
+            
+            while (Peek() != '"' && !IsAtEnd())
+            {
+                if (Peek() == '\n') _line++;
                 
-                if (!Match(TokenType.RPAREN))
-                    Error("Expected ')' after parameters");
+                if (Peek() == '{')
+                {
+                    sb.Append('{');
+                    Advance();
+                    
+                    int braceCount = 1;
+                    while (braceCount > 0 && !IsAtEnd())
+                    {
+                        if (Peek() == '{') braceCount++;
+                        if (Peek() == '}') braceCount--;
+                        if (Peek() == '\n') _line++;
+                        
+                        sb.Append(Peek());
+                        Advance();
+                    }
+                }
+                else if (Peek() == '\\')
+                {
+                    Advance();
+                    sb.Append(HandleEscapeSequence());
+                }
+                else
+                {
+                    sb.Append(Peek());
+                    Advance();
+                }
             }
             
-            return node;
+            if (IsAtEnd())
+            {
+                _errors.Add($"fmm002: Unterminated interpolated string at line {_line}");
+                return;
+            }
+            
+            Advance(); // Consume closing "
+            AddToken(TokenType.STRING_INTERPOLATED, sb.ToString());
         }
 
-        private MemoryStatementNode ParseMemoryStatement()
+        private char HandleEscapeSequence()
         {
-            Advance(); // consume memory
-            var node = new MemoryStatementNode();
-            
-            if (!Match(TokenType.DOT))
-                Error("Expected '.' after memory");
-            
-            if (Check(TokenType.IDENTIFIER))
+            return Peek() switch
             {
-                node.Property = Peek().Lexeme;
-                Advance();
-            }
-            else
-            {
-                Error("Expected memory property after memory.");
-            }
-            
-            return node;
+                'n' => '\n',
+                't' => '\t',
+                'r' => '\r',
+                '"' => '"',
+                '\\' => '\\',
+                '{' => '{',
+                '}' => '}',
+                _ => Peek()
+            };
         }
 
-        private ExpressionNode ParseExpression()
+        private bool Match(char expected)
         {
-            if (Check(TokenType.STRING))
-            {
-                var node = new StringLiteralNode { 
-                    Value = Peek().Literal.ToString(),
-                    IsInterpolated = false
-                };
-                Advance();
-                return node;
-            }
-            
-            if (Check(TokenType.STRING_INTERPOLATED))
-            {
-                var node = new StringLiteralNode { 
-                    Value = Peek().Literal.ToString(),
-                    IsInterpolated = true
-                };
-                Advance();
-                return node;
-            }
-            
-            if (Check(TokenType.NUMBER))
-            {
-                var node = new NumberLiteralNode { 
-                    Value = Convert.ToDouble(Peek().Literal)
-                };
-                Advance();
-                return node;
-            }
-            
-            if (Check(TokenType.IDENTIFIER))
-            {
-                var node = new VariableNode { Name = Peek().Lexeme };
-                Advance();
-                return node;
-            }
-            
-            Error("Expected expression");
-            return null;
+            if (IsAtEnd() || _source[_current] != expected) return false;
+            _current++;
+            _column++;
+            return true;
         }
 
-        private bool Match(TokenType type)
-        {
-            if (Check(type))
-            {
-                Advance();
-                return true;
-            }
-            return false;
-        }
-
-        private bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
-        private Token Peek() => _tokens[_current];
-        private Token Previous() => _tokens[_current - 1];
-        private bool IsAtEnd() => Peek().Type == TokenType.EOF;
+        private char Peek() => IsAtEnd() ? '\0' : _source[_current];
+        private char PeekNext() => _current + 1 >= _source.Length ? '\0' : _source[_current + 1];
+        private bool IsAtEnd() => _current >= _source.Length;
         
-        private Token Advance()
+        private char Advance()
         {
-            if (!IsAtEnd()) _current++;
-            return Previous();
+            _current++;
+            _column++;
+            return _source[_current - 1];
         }
 
-        private void Error(string message)
+        private void AddToken(TokenType type, object literal = null)
         {
-            if (!IsAtEnd())
-            {
-                var token = Peek();
-                throw new Exception($"Line {token.Line}, Column {token.Column}: {message}");
-            }
-            else
-            {
-                throw new Exception($"At end of file: {message}");
-            }
+            string text = _source.Substring(_start, _current - _start);
+            _tokens.Add(new Token(type, text, literal, _line, _column - text.Length));
         }
     }
 }
