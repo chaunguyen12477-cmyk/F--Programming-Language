@@ -15,7 +15,7 @@
 ## ✨ Tính năng nổi bật
 - ✅ **Import cả computer** - Không cần quan tâm phần cứng!
 - ✅ **String interpolation** - `$"Hello {name}!"`
-- ✅ **Quản lý bộ nhớ tự động** - `memory.memoryleft`
+- ✅ **Quản lý bộ nhớ tự động**
 - ✅ **File I/O siêu trực quan** - `at "file.txt" { ... }`
 - ✅ **Tự động báo lỗi FMM** - F Minus Minus Error codes
 
