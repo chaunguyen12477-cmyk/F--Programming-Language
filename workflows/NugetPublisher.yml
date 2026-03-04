@@ -54,8 +54,8 @@ jobs:
             -p:PackageVersion=${{ steps.version.outputs.VERSION }}
       
       - name: 📤 Push to NuGet
-        # CHỈ chạy khi có API key
-        if: ${{ secrets.NUGET != '' }}
+        # ĐÃ SỬA: Dùng đúng tên secret NUGET_API_KEY
+        if: ${{ secrets.NUGET_API_KEY != '' }}
         run: |
           dotnet nuget push nupkg/*.nupkg \
             --api-key ${{ secrets.NUGET_API_KEY }} \
