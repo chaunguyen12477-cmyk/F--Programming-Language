@@ -1,23 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
+    <!-- THÔNG TIN CƠ BẢN -->
     <id>Fminusminus</id>
     <version>1.4.0</version>
+    <title>F-- Programming Language</title>
     <authors>Lập trình viên 13 tuổi (RealMG)</authors>
     <owners>RealMG</owners>
     <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
     <projectUrl>https://github.com/realmg51-cpu/F---Programming-Language</projectUrl>
-    <icon>images\fminus-logo.png</icon>
+    <repository type="git" url="https://github.com/realmg51-cpu/F---Programming-Language.git" branch="main" />
     <readme>docs\README.nuget.md</readme>
-    <description>F-- Programming Language - The backward step of humanity, but forward step in creativity! Created by a 13-year-old developer using .NET.</description>
-    <tags>f--;fminus;programming-language;compiler;educational</tags>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <developmentDependency>false</developmentDependency>
+    
+    <!-- MÔ TẢ -->
+    <description>F-- (F Minus Minus) Programming Language - The backward step of humanity, but forward step in creativity! Created by a 13-year-old developer using .NET.</description>
+    <summary>F-- is a unique programming language with simple syntax, automatic memory management, and intuitive file I/O.</summary>
+    <tags>f--;fminus;programming-language;compiler;interpreter;dotnet;educational;fun;F---Programming-Language</tags>
+    <releaseNotes>https://github.com/realmg51-cpu/F---Programming-Language/releases</releaseNotes>
+    <copyright>Copyright (c) 2026 RealMG</copyright>
+    <language>en-US</language>
+    
+    <!-- THÔNG TIN CHI TIẾT -->
     <dependencies>
-      <group targetFramework="net8.0" />
+      <group targetFramework="net8.0">
+        <!-- Không có dependencies bên ngoài -->
+      </group>
     </dependencies>
   </metadata>
+  
+  <!-- CẤU TRÚC FILE KHI CÀI ĐẶT (KHÔNG CÓ LOGO) -->
   <files>
-    <file src="logo.png" target="images\" />
-    <file src="README.md" target="docs\README.nuget.md" />
+    <!-- Compiler files -->
+    <file src="Compiler\bin\Release\net8.0\*.dll" target="lib\net8.0\" />
+    <file src="Compiler\bin\Release\net8.0\*.pdb" target="lib\net8.0\" />
+    <file src="Compiler\bin\Release\net8.0\*.runtimeconfig.json" target="lib\net8.0\" />
+    
+    <!-- Tools -->
+    <file src="Compiler\bin\Release\net8.0\fminus.dll" target="tools\" />
+    <file src="Compiler\bin\Release\net8.0\fminus.exe" target="tools\" />
+    
+    <!-- Documentation -->
+    <file src="docs\README.nuget.md" target="docs\" />
     <file src="examples\**\*.f--" target="examples\" />
   </files>
 </package>
