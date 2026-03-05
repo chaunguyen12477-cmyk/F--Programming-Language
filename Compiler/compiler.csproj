@@ -1,5 +1,4 @@
 
-
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -9,24 +8,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
-    <!-- Tên assembly linh hoạt -->
+    <!-- Tên assembly -->
     <AssemblyName>fminus</AssemblyName>
-    <RootNamespace>FSharpMinus</RootNamespace>
+    <RootNamespace>Fminusminus</RootNamespace>
     
-    <!-- Version tự động -->
-    <Version>1.4.0</Version>
-    <FileVersion>1.4.0</FileVersion>
+    <!-- Version -->
+    <Version>2.0.0</Version>
+    <FileVersion>2.0.0</FileVersion>
     
     <!-- Thông tin package -->
-    <Authors>Lập trình viên 13 tuổi</Authors>
+    <Authors>Lập trình viên 13 tuổi (RealMG)</Authors>
     <Company>F-- Lang</Company>
     <Product>F-- Programming Language</Product>
     <Description>F-- - The backward step of humanity, but forward step in creativity!</Description>
-    <Copyright>© 2024 F-- Lang</Copyright>
+    <Copyright>© 2026 RealMG</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/yourusername/FSharpMinus</RepositoryUrl>
+    <RepositoryUrl>https://github.com/realmg51-cpu/F---Programming-Language</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>f--;programming-language;compiler;interpreter;fun</PackageTags>
+    <PackageTags>f--;fminus;programming-language;compiler;interpreter;fun</PackageTags>
+    <PackageId>Fminusminus</PackageId>
     
     <!-- Build settings -->
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
@@ -38,39 +38,17 @@
     <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
-  <!-- 
-    ⭐⭐⭐ SIÊU THOẢI MÁI - Dùng wildcard ** ⭐⭐⭐
-    ** = bao gồm tất cả file trong tất cả thư mục con
-  -->
+  <!-- Include các file .cs -->
   <ItemGroup>
-    <!-- Include tất cả file .cs trong src/ và các thư mục con -->
-    <Compile Include="src/**/*.cs" />
-    
-    <!-- Include tất cả file .cs trong thư mục gốc và các thư mục con -->
     <Compile Include="**/*.cs" Exclude="**/obj/**/*.cs;**/bin/**/*.cs" />
-    
-    <!-- Resources - thoải mái include -->
-    <EmbeddedResource Include="resources/**/*" />
-    <None Include="examples/**/*.f--" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="README.md" CopyToOutputDirectory="Always" />
-    <None Include="LICENSE" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
-  <!-- Package references - cũng thoải mái nhưng có kiểm soát -->
+  <!-- Package references -->
   <ItemGroup>
-    <!-- Cho CLI đẹp hơn -->
-    <PackageReference Include="Spectre.Console" Version="0.48.0" />
-    
-    <!-- Cho parsing nâng cao (nếu cần) -->
-    <!-- <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" /> -->
-    
-    <!-- Cho testing -->
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageReference Include="xunit" Version="2.6.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <!-- Không cần thêm package nào khác vì project tự chứa -->
   </ItemGroup>
 
-  <!-- Conditional compilation cho các nền tảng khác nhau -->
+  <!-- Conditional compilation -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
     <DefineConstants>WINDOWS</DefineConstants>
   </PropertyGroup>
@@ -94,53 +72,32 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
-  <!-- 
-    ⭐ Thoải mái hơn nữa: tự động tạo file .rsp cho response files 
-    Cho phép chạy với nhiều tham số dài dòng
-  -->
-  <Target Name="GenerateRspFile" AfterTargets="Build">
-    <WriteLinesToFile 
-      File="$(OutputPath)fminus.rsp"
-      Lines="@(FSharpMinusCommandLine)"
-      Overwrite="true" />
-  </Target>
-
-  <!-- 
-    ⭐⭐ THOẢI MÁI TỐI ĐA: Copy mọi thứ vào output 
-    Bao gồm cả file .f-- để chạy luôn không cần copy tay
-  -->
-  <Target Name="CopyEverything" AfterTargets="Build">
+  <!-- Copy examples -->
+  <Target Name="CopyExamples" AfterTargets="Build">
     <ItemGroup>
-      <_AllFiles Include="**/*.f--" />
+      <_ExampleFiles Include="..\examples\**\*.f--" />
     </ItemGroup>
-    <Copy SourceFiles="@(_AllFiles)" 
-          DestinationFolder="$(OutputPath)" 
+    <Copy SourceFiles="@(_ExampleFiles)" 
+          DestinationFolder="$(OutputPath)\examples\" 
           SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- 
-    ⭐⭐⭐ SIÊU CẤP VIP PRO: Tạo single executable 
-    Để F-- có thể chạy trên mọi máy không cần cài .NET
-  -->
+  <!-- Cấu hình cho Global Tool -->
   <PropertyGroup>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>fminus</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>
 
-  <!-- Runtime identifiers - chạy được trên mọi nền tảng -->
+  <!-- Runtime identifiers -->
   <PropertyGroup>
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
-  <!-- 
-    ⭐ Custom build events - F-- style: 
-    In ra message ngầu lòi khi build
-  -->
+  <!-- Message khi build -->
   <Target Name="FMinusMessage" BeforeTargets="Build">
     <Message Text="╔═══════════════════════════════════════╗" Importance="high" />
-    <Message Text="║   🔥 BUILDING F-- COMPILER v1.4 🔥   ║" Importance="high" />
+    <Message Text="║   🔥 BUILDING F-- COMPILER v2.0 🔥   ║" Importance="high" />
     <Message Text="║     The backward step of humanity     ║" Importance="high" />
     <Message Text="╚═══════════════════════════════════════╝" Importance="high" />
   </Target>
