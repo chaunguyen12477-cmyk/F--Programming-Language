@@ -78,7 +78,9 @@ start()
     return(0)  // Success
     end()      // End program
 }
-🚀 Installation
+```
+
+# 🚀 Installation
 
 System Requirements
 
